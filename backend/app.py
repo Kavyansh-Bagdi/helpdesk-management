@@ -1,0 +1,196 @@
+import os
+from flask import Flask, request, jsonify
+from flask_migrate import Migrate
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+from functools import wraps
+from dotenv import load_dotenv
+
+from models import db, User, Ticket, Comment
+
+load_dotenv()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///data.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+migrate = Migrate(app, db)
+
+
+
+# Decorator for token verification
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].split(" ")[1]
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = User.query.get(data['id'])
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 401
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+# Authentication Routes
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
+    new_user = User(username=data['username'], email=data['email'], password=hashed_password.decode('utf-8'))
+    db.session.add(new_user)
+    db.session.commit()
+    return jsonify({'id': new_user.id, 'username': new_user.username, 'email': new_user.email, 'role': new_user.role}), 201
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    user = User.query.filter_by(email=data['email']).first()
+    if not user or not bcrypt.checkpw(data['password'].encode('utf-8'), user.password.encode('utf-8')):
+        return jsonify({'message': 'Invalid credentials'}), 401
+    
+    token = jwt.encode({
+        'id': user.id,
+        'exp': datetime.utcnow() + timedelta(hours=24)
+    }, app.config['SECRET_KEY'], algorithm="HS256")
+    
+    return jsonify({'token': token})
+
+# Ticket Routes
+@app.route('/api/tickets', methods=['GET'])
+@token_required
+def get_tickets(current_user):
+    if current_user.role in ['admin', 'agent']:
+        tickets = Ticket.query.all()
+    else:
+        tickets = Ticket.query.filter_by(author_id=current_user.id).all()
+    
+    output = []
+    for ticket in tickets:
+        ticket_data = {
+            'id': ticket.id,
+            'title': ticket.title,
+            'description': ticket.description,
+            'status': ticket.status,
+            'author_id': ticket.author_id,
+            'created_at': ticket.created_at.isoformat()
+        }
+        output.append(ticket_data)
+    
+    return jsonify(output)
+
+@app.route('/api/tickets', methods=['POST'])
+@token_required
+def create_ticket(current_user):
+    data = request.get_json()
+    new_ticket = Ticket(title=data['title'], description=data['description'], author_id=current_user.id)
+    db.session.add(new_ticket)
+    db.session.commit()
+    
+    ticket_data = {
+        'id': new_ticket.id,
+        'title': new_ticket.title,
+        'description': new_ticket.description,
+        'status': new_ticket.status,
+        'author_id': new_ticket.author_id,
+        'created_at': new_ticket.created_at.isoformat()
+    }
+    
+    return jsonify(ticket_data), 201
+
+@app.route('/api/tickets/<int:ticket_id>', methods=['GET'])
+@token_required
+def get_ticket(current_user, ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
+        return jsonify({'message': 'Cannot perform that function!'}), 403
+        
+    ticket_data = {
+        'id': ticket.id,
+        'title': ticket.title,
+        'description': ticket.description,
+        'status': ticket.status,
+        'author_id': ticket.author_id,
+        'created_at': ticket.created_at.isoformat()
+    }
+    
+    return jsonify(ticket_data)
+
+@app.route('/api/tickets/<int:ticket_id>', methods=['PUT'])
+@token_required
+def update_ticket(current_user, ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    if current_user.role not in ['admin', 'agent']:
+        return jsonify({'message': 'Cannot perform that function!'}), 403
+        
+    data = request.get_json()
+    ticket.status = data.get('status', ticket.status)
+    db.session.commit()
+    
+    ticket_data = {
+        'id': ticket.id,
+        'title': ticket.title,
+        'description': ticket.description,
+        'status': ticket.status,
+        'author_id': ticket.author_id,
+        'created_at': ticket.created_at.isoformat()
+    }
+    
+    return jsonify(ticket_data)
+
+# Comment Routes
+@app.route('/api/tickets/<int:ticket_id>/comments', methods=['GET'])
+@token_required
+def get_comments(current_user, ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
+        return jsonify({'message': 'Cannot perform that function!'}), 403
+        
+    comments = Comment.query.filter_by(ticket_id=ticket_id).all()
+    output = []
+    for comment in comments:
+        comment_data = {
+            'id': comment.id,
+            'text': comment.text,
+            'author_id': comment.author_id,
+            'ticket_id': comment.ticket_id,
+            'created_at': comment.created_at.isoformat()
+        }
+        output.append(comment_data)
+        
+    return jsonify(output)
+
+@app.route('/api/tickets/<int:ticket_id>/comments', methods=['POST'])
+@token_required
+def add_comment(current_user, ticket_id):
+    ticket = Ticket.query.get_or_404(ticket_id)
+    
+    if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
+        return jsonify({'message': 'Cannot perform that function!'}), 403
+        
+    data = request.get_json()
+    new_comment = Comment(text=data['text'], author_id=current_user.id, ticket_id=ticket_id)
+    db.session.add(new_comment)
+    db.session.commit()
+    
+    comment_data = {
+        'id': new_comment.id,
+        'text': new_comment.text,
+        'author_id': new_comment.author_id,
+        'ticket_id': new_comment.ticket_id,
+        'created_at': new_comment.created_at.isoformat()
+    }
+    
+    return jsonify(comment_data), 201
+
+if __name__ == '__main__':
+    app.run(debug=True)

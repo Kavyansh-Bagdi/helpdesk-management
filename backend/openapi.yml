@@ -1,0 +1,306 @@
+openapi: 3.0.0
+info:
+  title: "Complaint/Help Desk Management API"
+  description: "API for managing customer complaints and help desk tickets."
+  version: "1.0.0"
+
+servers:
+  - url: "http://localhost:5000/api"
+    description: "Development server"
+
+# (1) API Endpoints (Paths)
+# This is the most important section for planning your routes.
+paths:
+  # --- Authentication ---
+  /auth/register:
+    post:
+      summary: "Register a new user"
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: "User created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: "Invalid input"
+
+  /auth/login:
+    post:
+      summary: "Log in a user"
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: "Login successful, returns JWT"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+        '401':
+          description: "Invalid credentials"
+
+  # --- Tickets ---
+  /tickets:
+    get:
+      summary: "Get a list of tickets"
+      description: "Admins/Agents can see all tickets. Customers see only their own."
+      tags: [Tickets]
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: "A list of tickets"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Ticket'
+
+    post:
+      summary: "Create a new ticket"
+      tags: [Tickets]
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketInput'
+      responses:
+        '201':
+          description: "Ticket created successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+
+  /tickets/{ticketId}:
+    get:
+      summary: "Get a single ticket by ID"
+      tags: [Tickets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "Ticket details"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '404':
+          description: "Ticket not found"
+
+    put:
+      summary: "Update a ticket"
+      description: "Used to change status, or content."
+      tags: [Tickets]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TicketUpdate'
+      responses:
+        '200':
+          description: "Ticket updated successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Ticket'
+        '404':
+          description: "Ticket not found"
+
+  # --- Comments ---
+  /tickets/{ticketId}/comments:
+    get:
+      summary: "Get all comments for a ticket"
+      tags: [Comments]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "A list of comments"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '404':
+          description: "Ticket not found"
+
+    post:
+      summary: "Add a comment to a ticket"
+      tags: [Comments]
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                  example: "I've tried restarting the service and it didn't help."
+      responses:
+        '201':
+          description: "Comment added successfully"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+
+# (2) Reusable Components
+# Defines data structures and security.
+components:
+  # --- Data Schemas ---
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        username:
+          type: string
+          example: "john.doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        role:
+          type: string
+          enum: [customer, agent, admin]
+          example: "customer"
+
+    UserRegister:
+      type: object
+      properties:
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    UserLogin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 101
+        title:
+          type: string
+          example: "Cannot access my account"
+        description:
+          type: string
+          example: "When I try to log in, I get a 'permission denied' error."
+        status:
+          type: string
+          enum: [open, in_progress, closed]
+          example: "open"
+        author_id:
+          type: integer
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+
+    TicketInput:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+
+    TicketUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [open, in_progress, closed]
+
+    Comment:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        text:
+          type: string
+          example: "We are looking into this issue for you."
+        author_id:
+          type: integer
+          example: 2
+        ticket_id:
+          type: integer
+          example: 101
+        created_at:
+          type: string
+          format: date-time
+
+  # --- Security ---
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
