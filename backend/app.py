@@ -6,12 +6,14 @@ import jwt
 from datetime import datetime, timedelta
 from functools import wraps
 from dotenv import load_dotenv
+from flask_cors import CORS
 
-from models import db, User, Ticket, Comment
+from models import db, Users, Tickets, Comments
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app) 
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -32,7 +34,7 @@ def token_required(f):
             return jsonify({'message': 'Token is missing!'}), 401
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
-            current_user = User.query.get(data['id'])
+            current_user = Users.query.get(data['id'])
         except:
             return jsonify({'message': 'Token is invalid!'}), 401
         return f(current_user, *args, **kwargs)
@@ -43,7 +45,7 @@ def token_required(f):
 def register():
     data = request.get_json()
     hashed_password = bcrypt.hashpw(data['password'].encode('utf-8'), bcrypt.gensalt())
-    new_user = User(username=data['username'], email=data['email'], password=hashed_password.decode('utf-8'))
+    new_user = Users(username=data['username'], email=data['email'], password=hashed_password)
     db.session.add(new_user)
     db.session.commit()
     return jsonify({'id': new_user.id, 'username': new_user.username, 'email': new_user.email, 'role': new_user.role}), 201
@@ -51,8 +53,8 @@ def register():
 @app.route('/api/auth/login', methods=['POST'])
 def login():
     data = request.get_json()
-    user = User.query.filter_by(email=data['email']).first()
-    if not user or not bcrypt.checkpw(data['password'].encode('utf-8'), user.password.encode('utf-8')):
+    user = Users.query.filter_by(email=data['email']).first()
+    if not user or not bcrypt.checkpw(data['password'].encode('utf-8'), user.password):
         return jsonify({'message': 'Invalid credentials'}), 401
     
     token = jwt.encode({
@@ -62,14 +64,14 @@ def login():
     
     return jsonify({'token': token})
 
-# Ticket Routes
+# Tickets Routes
 @app.route('/api/tickets', methods=['GET'])
 @token_required
 def get_tickets(current_user):
     if current_user.role in ['admin', 'agent']:
-        tickets = Ticket.query.all()
+        tickets = Tickets.query.all()
     else:
-        tickets = Ticket.query.filter_by(author_id=current_user.id).all()
+        tickets = Tickets.query.filter_by(author_id=current_user.id).all()
     
     output = []
     for ticket in tickets:
@@ -89,7 +91,7 @@ def get_tickets(current_user):
 @token_required
 def create_ticket(current_user):
     data = request.get_json()
-    new_ticket = Ticket(title=data['title'], description=data['description'], author_id=current_user.id)
+    new_ticket = Tickets(title=data['title'], description=data['description'], author_id=current_user.id)
     db.session.add(new_ticket)
     db.session.commit()
     
@@ -107,7 +109,7 @@ def create_ticket(current_user):
 @app.route('/api/tickets/<int:ticket_id>', methods=['GET'])
 @token_required
 def get_ticket(current_user, ticket_id):
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = Tickets.query.get_or_404(ticket_id)
     
     if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
         return jsonify({'message': 'Cannot perform that function!'}), 403
@@ -126,7 +128,7 @@ def get_ticket(current_user, ticket_id):
 @app.route('/api/tickets/<int:ticket_id>', methods=['PUT'])
 @token_required
 def update_ticket(current_user, ticket_id):
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = Tickets.query.get_or_404(ticket_id)
     
     if current_user.role not in ['admin', 'agent']:
         return jsonify({'message': 'Cannot perform that function!'}), 403
@@ -146,16 +148,16 @@ def update_ticket(current_user, ticket_id):
     
     return jsonify(ticket_data)
 
-# Comment Routes
+# Comments Routes
 @app.route('/api/tickets/<int:ticket_id>/comments', methods=['GET'])
 @token_required
 def get_comments(current_user, ticket_id):
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = Tickets.query.get_or_404(ticket_id)
     
     if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
         return jsonify({'message': 'Cannot perform that function!'}), 403
         
-    comments = Comment.query.filter_by(ticket_id=ticket_id).all()
+    comments = Comments.query.filter_by(ticket_id=ticket_id).all()
     output = []
     for comment in comments:
         comment_data = {
@@ -172,13 +174,13 @@ def get_comments(current_user, ticket_id):
 @app.route('/api/tickets/<int:ticket_id>/comments', methods=['POST'])
 @token_required
 def add_comment(current_user, ticket_id):
-    ticket = Ticket.query.get_or_404(ticket_id)
+    ticket = Tickets.query.get_or_404(ticket_id)
     
     if current_user.role not in ['admin', 'agent'] and ticket.author_id != current_user.id:
         return jsonify({'message': 'Cannot perform that function!'}), 403
         
     data = request.get_json()
-    new_comment = Comment(text=data['text'], author_id=current_user.id, ticket_id=ticket_id)
+    new_comment = Comments(text=data['text'], author_id=current_user.id, ticket_id=ticket_id)
     db.session.add(new_comment)
     db.session.commit()
     
