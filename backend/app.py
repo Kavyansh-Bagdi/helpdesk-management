@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory, Response
 from flask_migrate import Migrate
 import bcrypt
 import jwt
@@ -8,7 +8,7 @@ from functools import wraps
 from dotenv import load_dotenv
 from flask_cors import CORS
 
-from models import db, Users, Tickets, Comments
+from models import db, Users, Tickets, Comments, TicketImages
 
 load_dotenv()
 
@@ -41,6 +41,11 @@ def token_required(f):
     return decorated
 
 # Authentication Routes
+@app.route('/api/images/<int:image_id>')
+def get_image(image_id):
+    image = TicketImages.query.get_or_404(image_id)
+    return Response(image.image_data, mimetype='image/jpeg')
+
 @app.route('/api/auth/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -81,7 +86,8 @@ def get_tickets(current_user):
             'description': ticket.description,
             'status': ticket.status,
             'author_id': ticket.author_id,
-            'created_at': ticket.created_at.isoformat()
+            'created_at': ticket.created_at.isoformat(),
+            'image_ids': [image.id for image in ticket.images]
         }
         output.append(ticket_data)
     
@@ -90,18 +96,34 @@ def get_tickets(current_user):
 @app.route('/api/tickets', methods=['POST'])
 @token_required
 def create_ticket(current_user):
-    data = request.get_json()
-    new_ticket = Tickets(title=data['title'], description=data['description'], author_id=current_user.id)
+    title = request.form.get('title')
+    description = request.form.get('description')
+    images = request.files.getlist('images')
+
+    if not title or not description:
+        return jsonify({'message': 'Title and description are required!'}), 400
+
+    new_ticket = Tickets(title=title, description=description, author_id=current_user.id)
     db.session.add(new_ticket)
     db.session.commit()
-    
+
+    image_ids = []
+    if images:
+        for image in images:
+            image_data = image.read()
+            new_image = TicketImages(ticket_id=new_ticket.id, image_data=image_data)
+            db.session.add(new_image)
+            db.session.commit()
+            image_ids.append(new_image.id)
+
     ticket_data = {
         'id': new_ticket.id,
         'title': new_ticket.title,
         'description': new_ticket.description,
         'status': new_ticket.status,
         'author_id': new_ticket.author_id,
-        'created_at': new_ticket.created_at.isoformat()
+        'created_at': new_ticket.created_at.isoformat(),
+        'image_ids': image_ids
     }
     
     return jsonify(ticket_data), 201
@@ -120,7 +142,8 @@ def get_ticket(current_user, ticket_id):
         'description': ticket.description,
         'status': ticket.status,
         'author_id': ticket.author_id,
-        'created_at': ticket.created_at.isoformat()
+        'created_at': ticket.created_at.isoformat(),
+        'image_ids': [image.id for image in ticket.images]
     }
     
     return jsonify(ticket_data)

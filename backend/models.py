@@ -27,3 +27,9 @@ class Comments(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     author = db.relationship('Users', backref=db.backref('comments', lazy=True))
     ticket = db.relationship('Tickets', backref=db.backref('comments', lazy=True))
+
+class TicketImages(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey('tickets.id'), nullable=False)
+    image_data = db.Column(db.LargeBinary, nullable=False)
+    ticket = db.relationship('Tickets', backref=db.backref('images', lazy=True))

@@ -24,6 +24,9 @@ export function Tickets() {
             <form id="create-ticket-form">
               <input type="text" id="title" placeholder="Title" required>
               <textarea id="description" placeholder="Description" required></textarea>
+              <input type="file" id="image" accept="image/*" multiple>
+              <div id="image-preview-container" class="image-preview-container" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+              </div>
               <button type="submit">Create Ticket</button>
             </form>
         </div>
@@ -56,16 +59,37 @@ export function Tickets() {
       });
     });
 
+    const imageInput = document.getElementById('image');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+
+    imageInput.addEventListener('change', () => {
+      imagePreviewContainer.innerHTML = '';
+      const files = imageInput.files;
+      if (files) {
+        for (const file of files) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const img = document.createElement('img');
+            img.src = e.target.result;
+            img.style.maxWidth = '200px';
+            img.style.marginTop = '10px';
+            imagePreviewContainer.appendChild(img);
+          };
+          reader.readAsDataURL(file);
+        }
+      }
+    });
+
     const form = document.getElementById('create-ticket-form');
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const title = document.getElementById('title').value;
       const description = document.getElementById('description').value;
+      const imageInput = document.getElementById('image');
+      const images = imageInput.files;
       try {
-        const newTicket = await createTicket(title, description);
+        const newTicket = await createTicket(title, description, images);
         tickets.push(newTicket);
-        // Re-render logic would be more complex in a real framework
-        // For now, just navigate to the new ticket
         navigate(`/tickets/${newTicket.id}`);
       } catch (error) {
         alert('Failed to create ticket: ' + error.message);

@@ -40,6 +40,16 @@ CREATE TABLE IF NOT EXISTS comments (
 )
 """)
 
+# Create TicketImages table
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS ticket_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ticket_id INTEGER NOT NULL,
+    image_data BLOB NOT NULL,
+    FOREIGN KEY (ticket_id) REFERENCES tickets (id)
+)
+""")
+
 print("Database and tables created successfully.")
 
 connection.commit()

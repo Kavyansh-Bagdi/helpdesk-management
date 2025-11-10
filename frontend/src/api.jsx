@@ -4,9 +4,12 @@ async function request(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
   const token = localStorage.getItem('token');
   const headers = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -52,11 +55,29 @@ export const getTicket = (ticketId) => {
   return request(`/tickets/${ticketId}`);
 };
 
-export const createTicket = (title, description) => {
-  return request('/tickets', {
+export const createTicket = (title, description, images = []) => {
+  const formData = new FormData();
+  formData.append('title', title);
+  formData.append('description', description);
+  
+  const options = {
     method: 'POST',
-    body: JSON.stringify({ title, description }),
-  });
+    body: formData,
+    headers: {}, // Start with empty headers
+  };
+
+  if (images.length > 0) {
+    for (const image of images) {
+      formData.append('images', image);
+    }
+    // Let the browser set the Content-Type for FormData
+  } else {
+    // If no images, we need to stringify the body and set the header
+    options.body = JSON.stringify({ title, description });
+    options.headers['Content-Type'] = 'application/json';
+  }
+
+  return request('/tickets', options);
 };
 
 export const updateTicket = (ticketId, status) => {

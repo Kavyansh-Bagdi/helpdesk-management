@@ -81,9 +81,19 @@ paths:
       requestBody:
         required: true
         content:
-          application/json:
+          multipart/form-data:
             schema:
-              $ref: '#/components/schemas/TicketInput'
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                images:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
       responses:
         '201':
           description: "Ticket created successfully"
@@ -196,6 +206,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/Comment'
 
+  /images/{imageId}:
+    get:
+      summary: "Retrieve an image by ID"
+      tags: [Images]
+      parameters:
+        - name: imageId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: "Image file"
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: "Image not found"
+
 # (2) Reusable Components
 # Defines data structures and security.
 components:
@@ -263,6 +294,11 @@ components:
         created_at:
           type: string
           format: date-time
+        image_ids:
+          type: array
+          items:
+            type: integer
+          example: [1, 2]
 
     TicketInput:
       type: object

@@ -25,6 +25,9 @@ export function TicketDetail() {
           <h2>${ticket.title}</h2>
           <p>${ticket.description}</p>
           <p>Status: <span class="status status-${ticket.status}">${ticket.status}</span></p>
+          <div class="ticket-images" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
+            ${ticket.image_ids && ticket.image_ids.length > 0 ? ticket.image_ids.map(id => `<img src="http://localhost:5000/api/images/${id}" alt="Ticket Image" style="max-width: 200px; height: auto;"/>`).join('') : ''}
+          </div>
         </div>
 
         <div class="ticket-actions">
