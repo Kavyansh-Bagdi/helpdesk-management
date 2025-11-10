@@ -5,14 +5,14 @@ info:
   version: "1.0.0"
 
 servers:
-  - url: "http://localhost:5000/api"
+  - url: "http://localhost:5000"
     description: "Development server"
 
 # (1) API Endpoints (Paths)
 # This is the most important section for planning your routes.
 paths:
   # --- Authentication ---
-  /auth/register:
+  /api/auth/register:
     post:
       summary: "Register a new user"
       tags: [Authentication]
@@ -32,7 +32,7 @@ paths:
         '400':
           description: "Invalid input"
 
-  /auth/login:
+  /api/auth/login:
     post:
       summary: "Log in a user"
       tags: [Authentication]
@@ -56,7 +56,7 @@ paths:
           description: "Invalid credentials"
 
   # --- Tickets ---
-  /tickets:
+  /api/tickets:
     get:
       summary: "Get a list of tickets"
       description: "Admins/Agents can see all tickets. Customers see only their own."
@@ -72,6 +72,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Ticket'
+        '401':
+          description: "Unauthorized"
+        '403':
+          description: "Forbidden"
 
     post:
       summary: "Create a new ticket"
@@ -101,8 +105,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
+        '400':
+          description: "Missing required fields"
+        '401':
+          description: "Unauthorized"
 
-  /tickets/{ticketId}:
+  /api/tickets/{ticketId}:
     get:
       summary: "Get a single ticket by ID"
       tags: [Tickets]
@@ -121,6 +129,10 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
+        '401':
+          description: "Unauthorized"
+        '403':
+          description: "Forbidden"
         '404':
           description: "Ticket not found"
 
@@ -149,11 +161,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
+        '401':
+          description: "Unauthorized"
+        '403':
+          description: "Forbidden"
         '404':
           description: "Ticket not found"
 
   # --- Comments ---
-  /tickets/{ticketId}/comments:
+  /api/tickets/{ticketId}/comments:
     get:
       summary: "Get all comments for a ticket"
       tags: [Comments]
@@ -174,6 +190,10 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
+        '401':
+          description: "Unauthorized"
+        '403':
+          description: "Forbidden"
         '404':
           description: "Ticket not found"
 
@@ -205,8 +225,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
+        '401':
+          description: "Unauthorized"
+        '403':
+          description: "Forbidden"
 
-  /images/{imageId}:
+  /api/images/{imageId}:
     get:
       summary: "Retrieve an image by ID"
       tags: [Images]
