@@ -26,7 +26,7 @@ export function TicketDetail() {
           <p>${ticket.description}</p>
           <p>Status: <span class="status status-${ticket.status}">${ticket.status}</span></p>
           <div class="ticket-images" style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px;">
-            ${ticket.image_ids && ticket.image_ids.length > 0 ? ticket.image_ids.map(id => `<img src="http://localhost:5000/api/images/${id}" alt="Ticket Image" style="max-width: 200px; height: auto;"/>`).join('') : ''}
+            ${ticket.image_ids && ticket.image_ids.length > 0 ? ticket.image_ids.map(id => `<img class="ticket-image" src="http://localhost:5000/api/images/${id}" alt="Ticket Image" style="max-width: 200px; height: auto; cursor: pointer;"/>`).join('') : ''}
           </div>
         </div>
 
@@ -52,6 +52,10 @@ export function TicketDetail() {
               <button type="submit">Add Comment</button>
             </form>
         </div>
+      </div>
+      <div id="image-modal" class="modal">
+        <span class="close-modal">&times;</span>
+        <img class="modal-content" id="modal-image">
       </div>
     `;
   };
@@ -100,6 +104,28 @@ export function TicketDetail() {
             attachDynamicListeners();
         } catch (error) {
             alert('Failed to update status: ' + error.message);
+        }
+    });
+
+    const imageModal = document.getElementById('image-modal');
+    const modalImage = document.getElementById('modal-image');
+    const closeModal = document.querySelector('.close-modal');
+
+    document.querySelectorAll('.ticket-image').forEach(img => {
+        img.addEventListener('click', () => {
+            imageModal.style.display = 'block';
+            modalImage.src = img.src;
+        });
+    });
+
+    const close = () => {
+        imageModal.style.display = 'none';
+    }
+
+    closeModal.addEventListener('click', close);
+    imageModal.addEventListener('click', (e) => {
+        if (e.target === imageModal) {
+            close();
         }
     });
   }

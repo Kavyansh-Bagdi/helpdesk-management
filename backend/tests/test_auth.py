@@ -5,7 +5,6 @@ from app import db
 from models import Users
 
 def test_register(client, init_database):
-    """Test user registration."""
     response = client.post('/api/auth/register', 
                            data=json.dumps(dict(
                                username='testuser',
@@ -20,8 +19,6 @@ def test_register(client, init_database):
     assert 'id' in data
 
 def test_login(client, init_database):
-    """Test user login."""
-    # First, register a user
     client.post('/api/auth/register', 
                 data=json.dumps(dict(
                     username='testuser',
@@ -30,7 +27,6 @@ def test_login(client, init_database):
                 )),
                 content_type='application/json')
 
-    # Now, log in
     response = client.post('/api/auth/login',
                            data=json.dumps(dict(
                                email='test@example.com',
@@ -42,7 +38,6 @@ def test_login(client, init_database):
     assert 'token' in data
 
 def test_login_invalid_credentials(client, init_database):
-    """Test login with invalid credentials."""
     response = client.post('/api/auth/login',
                            data=json.dumps(dict(
                                email='wrong@example.com',

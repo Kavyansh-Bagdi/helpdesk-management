@@ -6,12 +6,9 @@ info:
 
 servers:
   - url: "http://localhost:5000"
-    description: "Development server"
+    description: "Helpdesk Management System Server"
 
-# (1) API Endpoints (Paths)
-# This is the most important section for planning your routes.
 paths:
-  # --- Authentication ---
   /api/auth/register:
     post:
       summary: "Register a new user"
@@ -55,17 +52,15 @@ paths:
         '401':
           description: "Invalid credentials"
 
-  # --- Tickets ---
   /api/tickets:
     get:
-      summary: "Get a list of tickets"
-      description: "Admins/Agents can see all tickets. Customers see only their own."
+      summary: "Get all tickets"
       tags: [Tickets]
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: "A list of tickets"
+          description: "List of tickets"
           content:
             application/json:
               schema:
@@ -78,7 +73,7 @@ paths:
           description: "Forbidden"
 
     post:
-      summary: "Create a new ticket"
+      summary: "Create a new ticket with optional images"
       tags: [Tickets]
       security:
         - BearerAuth: []
@@ -88,6 +83,7 @@ paths:
           multipart/form-data:
             schema:
               type: object
+              required: [title, description]
               properties:
                 title:
                   type: string
@@ -100,7 +96,7 @@ paths:
                     format: binary
       responses:
         '201':
-          description: "Ticket created successfully"
+          description: "Ticket created"
           content:
             application/json:
               schema:
@@ -110,40 +106,37 @@ paths:
         '401':
           description: "Unauthorized"
 
-  /api/tickets/{ticketId}:
+
+  /api/tickets/{ticket_id}:
     get:
-      summary: "Get a single ticket by ID"
+      summary: "Get a ticket by ID"
       tags: [Tickets]
       security:
         - BearerAuth: []
       parameters:
-        - name: ticketId
+        - name: ticket_id
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: "Ticket details"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-        '401':
-          description: "Unauthorized"
         '403':
           description: "Forbidden"
         '404':
           description: "Ticket not found"
 
     put:
-      summary: "Update a ticket"
-      description: "Used to change status, or content."
+      summary: "Update a ticket (status)"
       tags: [Tickets]
       security:
         - BearerAuth: []
       parameters:
-        - name: ticketId
+        - name: ticket_id
           in: path
           required: true
           schema:
@@ -156,42 +149,36 @@ paths:
               $ref: '#/components/schemas/TicketUpdate'
       responses:
         '200':
-          description: "Ticket updated successfully"
+          description: "Ticket updated"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Ticket'
-        '401':
-          description: "Unauthorized"
         '403':
           description: "Forbidden"
         '404':
-          description: "Ticket not found"
+          description: "Not found"
 
-  # --- Comments ---
-  /api/tickets/{ticketId}/comments:
+  /api/tickets/{ticket_id}/comments:
     get:
       summary: "Get all comments for a ticket"
       tags: [Comments]
       security:
         - BearerAuth: []
       parameters:
-        - name: ticketId
+        - name: ticket_id
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: "A list of comments"
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Comment'
-        '401':
-          description: "Unauthorized"
         '403':
           description: "Forbidden"
         '404':
@@ -203,7 +190,7 @@ paths:
       security:
         - BearerAuth: []
       parameters:
-        - name: ticketId
+        - name: ticket_id
           in: path
           required: true
           schema:
@@ -217,32 +204,32 @@ paths:
               properties:
                 text:
                   type: string
-                  example: "I've tried restarting the service and it didn't help."
+                  example: "I'm checking the logs now."
       responses:
         '201':
-          description: "Comment added successfully"
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Comment'
-        '401':
-          description: "Unauthorized"
         '403':
           description: "Forbidden"
 
-  /api/images/{imageId}:
+  # ======================
+  # IMAGES
+  # ======================
+  /api/images/{image_id}:
     get:
       summary: "Retrieve an image by ID"
       tags: [Images]
       parameters:
-        - name: imageId
+        - name: image_id
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: "Image file"
+          description: "Image binary"
           content:
             image/jpeg:
               schema:
@@ -251,31 +238,24 @@ paths:
         '404':
           description: "Image not found"
 
-# (2) Reusable Components
-# Defines data structures and security.
 components:
-  # --- Data Schemas ---
   schemas:
     User:
       type: object
       properties:
         id:
           type: integer
-          example: 1
         username:
           type: string
-          example: "john.doe"
         email:
           type: string
-          format: email
-          example: "john.doe@example.com"
         role:
           type: string
           enum: [customer, agent, admin]
-          example: "customer"
 
     UserRegister:
       type: object
+      required: [username, email, password]
       properties:
         username:
           type: string
@@ -288,6 +268,7 @@ components:
 
     UserLogin:
       type: object
+      required: [email, password]
       properties:
         email:
           type: string
@@ -301,20 +282,14 @@ components:
       properties:
         id:
           type: integer
-          example: 101
         title:
           type: string
-          example: "Cannot access my account"
         description:
           type: string
-          example: "When I try to log in, I get a 'permission denied' error."
         status:
           type: string
-          enum: [open, in_progress, closed]
-          example: "open"
         author_id:
           type: integer
-          example: 1
         created_at:
           type: string
           format: date-time
@@ -322,15 +297,6 @@ components:
           type: array
           items:
             type: integer
-          example: [1, 2]
-
-    TicketInput:
-      type: object
-      properties:
-        title:
-          type: string
-        description:
-          type: string
 
     TicketUpdate:
       type: object
@@ -344,21 +310,16 @@ components:
       properties:
         id:
           type: integer
-          example: 1
         text:
           type: string
-          example: "We are looking into this issue for you."
         author_id:
           type: integer
-          example: 2
         ticket_id:
           type: integer
-          example: 101
         created_at:
           type: string
           format: date-time
 
-  # --- Security ---
   securitySchemes:
     BearerAuth:
       type: http

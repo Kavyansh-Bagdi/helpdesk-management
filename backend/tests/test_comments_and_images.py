@@ -6,7 +6,6 @@ from models import Users, Tickets
 import io
 
 def get_auth_token(client, username='testuser', email='test@example.com'):
-    """Helper function to get an auth token."""
     client.post('/api/auth/register', 
                 data=json.dumps(dict(
                     username=username,
@@ -23,7 +22,6 @@ def get_auth_token(client, username='testuser', email='test@example.com'):
     return json.loads(response.data)['token']
 
 def test_add_comment(client, init_database):
-    """Test adding a comment to a ticket."""
     token = get_auth_token(client)
     create_response = client.post('/api/tickets',
                                   headers={'Authorization': f'Bearer {token}'},
@@ -44,7 +42,6 @@ def test_add_comment(client, init_database):
     assert data['ticket_id'] == ticket_id
 
 def test_get_comments(client, init_database):
-    """Test getting comments for a ticket."""
     token = get_auth_token(client)
     create_response = client.post('/api/tickets',
                                   headers={'Authorization': f'Bearer {token}'},
@@ -68,7 +65,6 @@ def test_get_comments(client, init_database):
     assert data[0]['text'] == 'This is a test comment.'
 
 def test_get_image(client, init_database):
-    """Test getting an image."""
     token = get_auth_token(client)
     create_response = client.post('/api/tickets',
                                   headers={'Authorization': f'Bearer {token}'},
