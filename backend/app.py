@@ -218,4 +218,4 @@ def add_comment(current_user, ticket_id):
     return jsonify(comment_data), 201
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
